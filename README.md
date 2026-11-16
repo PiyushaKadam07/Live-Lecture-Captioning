@@ -7,7 +7,11 @@ Lecture Captions is a free, browser-based app that turns speech into readable ca
 
 It runs entirely in the browser, so any student at any university can use it from a link with nothing to install and no account to create.
 
-> **Status:** in active development. See the [Roadmap](#roadmap) for what is done and what is planned.
+> **Status:** version 0.1 works today: live microphone captions, a readable caption display, and a searchable transcript you can download as .txt, .vtt or .srt. Video captions and ASL support are next. See the [Roadmap](#roadmap).
+>
+> **Try it:** https://piyushakadam07.github.io/Live-Lecture-Captioning/ (Chrome or Edge on a computer)
+
+![Lecture Captions showing live captions, the transcript and display settings](assets/screenshot.png)
 
 ---
 
@@ -269,8 +273,8 @@ No API keys or paid accounts are needed.
 ### Install and run
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/lecture-captions.git
-cd lecture-captions
+git clone https://github.com/PiyushaKadam07/Live-Lecture-Captioning.git
+cd Live-Lecture-Captioning
 npm install
 npm run dev
 ```
@@ -284,9 +288,8 @@ Open the address shown in the terminal (usually `http://localhost:5173`) in Chro
 | `npm run dev` | Starts the development server with live reload |
 | `npm run build` | Creates an optimized production build in `dist/` |
 | `npm run preview` | Serves the production build locally |
-| `npm test` | Runs unit and component tests |
-| `npm run test:e2e` | Runs end-to-end tests in a real browser |
-| `npm run lint` | Checks code style |
+| `npm test` | Runs unit and component tests (Vitest + Testing Library) |
+| `npm run typecheck` | Checks types with TypeScript |
 
 ---
 
@@ -324,10 +327,10 @@ The app builds to static files, so it can be hosted for free anywhere that serve
 
 **GitHub Pages with GitHub Actions:**
 
-1. Set `base: "/lecture-captions/"` in `vite.config.ts`.
-2. Add a workflow in `.github/workflows/deploy.yml` that runs `npm ci`, `npm run build`, and deploys the `dist/` folder.
-3. In the repository, go to **Settings > Pages** and choose **GitHub Actions** as the source.
-4. Every push to `main` publishes the app at `https://YOUR-USERNAME.github.io/lecture-captions/`.
+The workflow in `.github/workflows/deploy.yml` runs the tests, builds with the right base path (`BASE_PATH=/<repo-name>/`), and deploys `dist/`.
+
+1. In the repository, go to **Settings > Pages** and choose **GitHub Actions** as the source.
+2. Every push to `main` then publishes the app at `https://<username>.github.io/<repo-name>/`.
 
 **Netlify or Vercel:** import the GitHub repository, set the build command to `npm run build` and the output folder to `dist`.
 
@@ -337,15 +340,15 @@ The app builds to static files, so it can be hosted for free anywhere that serve
 
 ## Roadmap
 
-- [ ] Project setup (Vite, React, TypeScript)
-- [ ] Live microphone captions with the Web Speech API
-- [ ] Readable caption display (font size, contrast, themes, full screen)
-- [ ] Transcript with timestamps, search, and export (.txt, .vtt, .srt)
+- [x] Project setup (Vite, React, TypeScript)
+- [x] Live microphone captions with the Web Speech API
+- [x] Readable caption display (font size, contrast, themes, full screen)
+- [x] Transcript with timestamps, search, and export (.txt, .vtt, .srt)
 - [ ] Captions for video files and browser tabs using Whisper
 - [ ] ASL fingerspelling and dictionary lookup
 - [ ] Course glossary with sign videos and automatic highlighting
 - [ ] Accessibility audit (WCAG 2.1 AA) and automated tests
-- [ ] Deployment with GitHub Actions
+- [x] Deployment with GitHub Actions
 - [ ] Shareable glossaries (import/export as JSON)
 - [ ] Multi-language captions and translation
 - [ ] Optional instructor "broadcast" mode so students see captions on their own devices
@@ -359,7 +362,7 @@ Contributions are welcome, especially from Deaf and hard of hearing users, ASL i
 
 1. Fork the repository and create a branch: `git checkout -b feature/your-feature`
 2. Make your changes and add tests.
-3. Run `npm test` and `npm run lint`.
+3. Run `npm test` and `npm run build`.
 4. Open a pull request describing what you changed and why.
 
 Please open an issue first for large changes.
