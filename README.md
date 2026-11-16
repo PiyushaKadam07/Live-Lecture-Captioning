@@ -345,6 +345,7 @@ The workflow in `.github/workflows/deploy.yml` runs the tests, builds with the r
 - [x] Readable caption display (font size, contrast, themes, full screen)
 - [x] Transcript with timestamps, search, and export (.txt, .vtt, .srt)
 - [ ] Captions for video files and browser tabs using Whisper
+- [ ] "Ask the lecture": question answering over the transcript with timestamped answers (RAG)
 - [ ] ASL fingerspelling and dictionary lookup
 - [ ] Course glossary with sign videos and automatic highlighting
 - [ ] Accessibility audit (WCAG 2.1 AA) and automated tests
