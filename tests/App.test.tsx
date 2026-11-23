@@ -12,11 +12,13 @@ describe("App", () => {
   beforeEach(() => {
     localStorage.clear();
     FakeSpeechRecognition.instances = [];
+    // These tests drive the browser (Web Speech API) engine.
+    localStorage.setItem("lecture-captions:settings", JSON.stringify({ engine: "browser" }));
   });
 
   it("explains which browsers work when speech recognition is missing", () => {
     render(<App supported={false} createRecognizer={factory} />);
-    expect(screen.getByRole("alert")).toHaveTextContent("need Chrome or Edge");
+    expect(screen.getByRole("alert")).toHaveTextContent("needs Chrome or Edge");
     expect(screen.getByRole("button", { name: "Start captions" })).toBeDisabled();
   });
 
@@ -48,7 +50,7 @@ describe("App", () => {
 
   it("searches the transcript and keeps it after a reload", async () => {
     const user = userEvent.setup();
-    localStorage.setItem("lecture-captions:settings", JSON.stringify({ privacyAcknowledged: true }));
+    localStorage.setItem("lecture-captions:settings", JSON.stringify({ engine: "browser", privacyAcknowledged: true }));
     const { unmount } = render(<App supported createRecognizer={factory} />);
     await user.click(screen.getByRole("button", { name: "Start captions" }));
     act(() => fake().emit([{ text: "Eigenvalues are scalars.", isFinal: true }]));
@@ -64,7 +66,7 @@ describe("App", () => {
 
   it("shows a clear message when the microphone is blocked", async () => {
     const user = userEvent.setup();
-    localStorage.setItem("lecture-captions:settings", JSON.stringify({ privacyAcknowledged: true }));
+    localStorage.setItem("lecture-captions:settings", JSON.stringify({ engine: "browser", privacyAcknowledged: true }));
     render(<App supported createRecognizer={factory} />);
     await user.click(screen.getByRole("button", { name: "Start captions" }));
     act(() => fake().onerror?.({ error: "not-allowed" }));

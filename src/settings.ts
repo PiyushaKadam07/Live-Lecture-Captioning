@@ -1,5 +1,7 @@
 export type Theme = "dark" | "light" | "contrast";
 export type FontChoice = "atkinson" | "lexend" | "system";
+/** whisper: our Whisper server on Google Cloud. browser: the browser's built-in Web Speech API. */
+export type Engine = "whisper" | "browser";
 
 export type Settings = {
   fontSize: number; // px
@@ -8,6 +10,7 @@ export type Settings = {
   theme: Theme;
   font: FontChoice;
   language: string; // BCP-47, e.g. "en-US"
+  engine: Engine;
   privacyAcknowledged: boolean;
 };
 
@@ -18,6 +21,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: "dark",
   font: "atkinson",
   language: "en-US",
+  engine: "whisper",
   privacyAcknowledged: false,
 };
 

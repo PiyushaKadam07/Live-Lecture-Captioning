@@ -1,4 +1,4 @@
-import type { FontChoice, Settings, Theme } from "../settings";
+import type { Engine, FontChoice, Settings, Theme } from "../settings";
 import { FONT_LABELS, LANGUAGES } from "../settings";
 
 type Props = {
@@ -6,6 +6,11 @@ type Props = {
   onChange: (next: Partial<Settings>) => void;
   disabledLanguage: boolean;
 };
+
+const ENGINES: Array<{ value: Engine; label: string }> = [
+  { value: "whisper", label: "Whisper (works in any browser, English)" },
+  { value: "browser", label: "Browser speech (Chrome and Edge, many languages)" },
+];
 
 const THEMES: Array<{ value: Theme; label: string }> = [
   { value: "dark", label: "Dark" },
@@ -58,15 +63,29 @@ export function SettingsPanel({ settings, onChange, disabledLanguage }: Props) {
           ))}
         </select>
       </div>
+            <div className="field">
+        <label htmlFor="engine">Speech recognition</label>
+        <select id="engine" value={settings.engine} disabled={disabledLanguage}
+          onChange={(e) => onChange({ engine: e.target.value as Engine })}>
+          {ENGINES.map((en) => (
+            <option key={en.value} value={en.value}>{en.label}</option>
+          ))}
+        </select>
+      </div>
       <div className="field">
         <label htmlFor="language">Spoken language</label>
-        <select id="language" value={settings.language} disabled={disabledLanguage}
+        <select id="language" value={settings.engine === "whisper" ? "en-US" : settings.language}
+          disabled={disabledLanguage || settings.engine === "whisper"}
           onChange={(e) => onChange({ language: e.target.value })}>
           {LANGUAGES.map((l) => (
             <option key={l.code} value={l.code}>{l.label}</option>
           ))}
         </select>
-        {disabledLanguage && <p className="hint">Stop captions to change the language.</p>}
+        {disabledLanguage ? (
+          <p className="hint">Stop captions to change these settings.</p>
+        ) : settings.engine === "whisper" ? (
+          <p className="hint">The Whisper engine understands English only for now.</p>
+        ) : null}
       </div>
     </section>
   );
