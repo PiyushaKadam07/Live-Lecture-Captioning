@@ -1,387 +1,169 @@
-
 # Lecture Captions
 
-**Live captions and ASL support so Deaf and hard of hearing students can follow every lecture.**
+[![Test and deploy](https://github.com/PiyushaKadam07/Live-Lecture-Captioning/actions/workflows/deploy.yml/badge.svg)](https://github.com/PiyushaKadam07/Live-Lecture-Captioning/actions/workflows/deploy.yml)
 
-Lecture Captions is a free, browser-based app that turns speech into readable captions in real time, whether a professor is talking in the room or a recorded lecture video is playing. It adds American Sign Language (ASL) support on top of the captions: fingerspelling, one-click sign lookup, and course glossaries where instructors attach real ASL sign videos for technical terms.
+**Live captions so Deaf and hard of hearing students can follow every lecture.**
 
-It runs entirely in the browser, so any student at any university can use it from a link with nothing to install and no account to create.
+**[Try it](https://piyushakadam07.github.io/Live-Lecture-Captioning/)**: open it in any up-to-date browser, press Start and talk. Nothing to install, no account.
 
-> **Status:** version 0.1 works today: live microphone captions, a readable caption display, and a searchable transcript you can download as .txt, .vtt or .srt. Video captions and ASL support are next. See the [Roadmap](#roadmap).
->
-> **Try it:** https://piyushakadam07.github.io/Live-Lecture-Captioning/ (Chrome or Edge on a computer)
+Lecture Captions turns a lecturer's speech into large, readable captions in real time. The browser records the microphone, cuts the audio at natural pauses and sends it to a speech server I run on Google Cloud, where OpenAI's Whisper model turns it into text. On 1 hour of recorded TED talks, the live captions have an **8.2% word error rate**, and on Cloud Run an 11-second clip is transcribed in about 2.3 seconds.
 
 ![Lecture Captions showing live captions, the transcript and display settings](assets/screenshot.png)
 
----
+## What it does
 
-## Table of contents
+- **Live captions** from the microphone, in large text that's easy to read from the back of a room.
+- **Two speech engines**, chosen in the settings:
+  - **Whisper** (default): my own speech server on Google Cloud Run. Works in Chrome, Edge, Firefox and Safari. English only for now.
+  - **Browser speech**: the Web Speech API built into Chrome and Edge. Shows words as they're spoken and supports many languages, but only works in those two browsers.
+- **Display settings**: font size, line spacing, number of lines, dark and high-contrast themes, and a dyslexia-friendly font. Saved on the device.
+- **Transcript**: every caption with a timestamp, searchable, and downloadable as `.txt`, or as `.vtt` / `.srt` subtitles for a lecture recording.
 
-- [Why this project](#why-this-project)
-- [Features](#features)
-- [How it works (user flow)](#how-it-works-user-flow)
-- [Architecture](#architecture)
-- [Tech stack](#tech-stack)
-- [Our approach to ASL](#our-approach-to-asl)
-- [Privacy](#privacy)
-- [Accessibility](#accessibility)
-- [Browser support](#browser-support)
-- [Getting started](#getting-started)
-- [Project structure](#project-structure)
-- [Deployment](#deployment)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [License](#license)
-- [Acknowledgements](#acknowledgements)
+It's meant to support human interpreters and captioners, not replace them. They aren't available for every office hour, study group or recorded video, and that's the gap this fills.
 
----
+## How it works
 
-## Why this project
-
-Deaf and hard of hearing students often depend on human interpreters or CART captioners. Universities do provide them, but they are expensive, booked in advance, and not available for every office hour, study session, or recorded video. Many lecture recordings have no captions, or auto-generated captions that cannot be adjusted for readability.
-
-Lecture Captions fills those gaps:
-
-- **Always available:** open the app and start captioning in seconds.
-- **Works for live and recorded lectures:** the same app handles a professor at the front of the room and a video on a course site.
-- **Built for reading:** large text, high contrast, and adjustable size and speed, instead of tiny subtitles.
-- **ASL-aware:** connects caption words to ASL resources, which helps students whose first language is ASL.
-
-It is designed to **support**, not replace, qualified interpreters and captioners.
-
----
-
-## Features
-
-### Live captions from a microphone
-Captions what the professor says, live, using the device microphone. Words appear as they are spoken and are corrected as the speech recognizer becomes confident.
-
-### Captions for video lectures
-- **Video file:** load a lecture recording (MP4, WebM) and get captions while it plays.
-- **Browser tab:** share a tab that is playing a lecture (for example YouTube, Canvas, Zoom in the browser) and caption its audio.
-
-### Readable caption display
-- Adjustable font size, line spacing, and number of visible lines
-- High-contrast and dark themes, plus a dyslexia-friendly font option
-- Auto-scroll with a "pause scrolling" option for re-reading
-- Full-screen caption mode for projecting in a classroom
-
-### Transcript and export
-- Running transcript with timestamps
-- Search inside the transcript
-- Export as plain text (`.txt`), WebVTT (`.vtt`), or SubRip (`.srt`) for use as video subtitles or study notes
-
-### ASL support
-- **Fingerspelling:** click any word in the captions to see it spelled with ASL handshapes, letter by letter, at adjustable speed.
-- **Sign lookup:** one click opens that word in public ASL dictionaries.
-- **Course glossary:** instructors or students add key terms (for example "mitochondria", "eigenvalue") with a link to a video of the correct sign. Glossary terms are highlighted automatically when they appear in the captions.
-
----
-
-## How it works (user flow)
-
-```mermaid
-flowchart TD
-    A[Student opens the app in Chrome or Edge] --> B{Choose a caption source}
-    B -->|Professor speaking| C[Microphone]
-    B -->|Recorded lecture| D[Video file]
-    B -->|Lecture in another tab| E[Shared browser tab]
-    C --> F[Allow microphone access]
-    D --> G[Pick a video and press play]
-    E --> H[Pick a tab and share its audio]
-    F --> I[Live captions appear]
-    G --> I
-    H --> I
-    I --> J[Adjust size, contrast and theme]
-    I --> K[Click a word for ASL fingerspelling or sign lookup]
-    I --> L[Glossary terms are highlighted]
-    I --> M[Stop the session]
-    M --> N[Review, search and export the transcript]
+```
+ Browser (React + TypeScript, GitHub Pages)                Google Cloud Run
+ ┌──────────────────────────────────────────────┐        ┌───────────────────────────┐
+ │ microphone ─► AudioWorklet ─► Chunker         │  WAV   │ FastAPI  POST /transcribe │
+ │                 (audio thread)  cut at pauses ├───────►│ faster-whisper (base.en,  │
+ │                               ─► 16 kHz WAV   │        │ int8 on CPU) in Docker    │
+ │ captions + transcript ◄─ results, in order ◄──┼────────┤ ◄── text                  │
+ └──────────────────────────────────────────────┘  JSON  └───────────────────────────┘
 ```
 
-**A typical session:**
+1. **Recording.** An [AudioWorklet](public/recorder-worklet.js) collects microphone samples on the browser's audio thread, so a busy page can't cause gaps in the audio.
+2. **Cutting at pauses.** The [Chunker](src/recognizers/audio.ts) waits for at least 3 seconds of audio, then cuts at the next 100 ms of quiet, and always cuts by 8 seconds. Cutting on a fixed timer would split words in half. Chunks that are silent all the way through are never sent, which saves money and stops Whisper from inventing words in silence (it's known for writing "Thanks for watching!" on empty audio).
+3. **Sending.** Each chunk is downsampled from 44.1/48 kHz to 16 kHz and wrapped as a WAV file. Chunks are sent [one at a time, in order](src/recognizers/whisper.ts), each with the last 200 characters of text as a prompt, so sentences and spellings carry on from one chunk to the next.
+4. **Transcribing.** The [server](backend/main.py) is a small FastAPI app running faster-whisper `base.en` with int8 weights, packed in Docker with the model already inside, so a cold start doesn't need a download. The transcription endpoint is a plain `def`, not `async def`, so FastAPI runs Whisper in a worker thread and one slow request doesn't block the others.
+5. **If the connection drops**, captions keep listening, show one message (not one per chunk) and carry on when the server is reachable again. When you press Stop, the last unfinished chunk is still sent, so the final sentence isn't lost.
 
-1. The student opens the app and picks a source: **Microphone**, **Video file**, or **Browser tab**.
-2. The browser asks for permission (microphone or tab sharing). The student allows it.
-3. Captions appear in large text. Gray text is still being recognized; white text is final.
-4. The student taps an unfamiliar word to see it fingerspelled or look up its sign.
-5. When the lecture ends, the student stops the session and downloads the transcript as notes or subtitles.
+Both engines follow the same [`Recognizer`](src/recognizers/Recognizer.ts) interface, so the captions, transcript and exports don't care which one is running.
 
----
+## How accurate is it?
 
-## Architecture
+I measured word error rate (WER), the share of words that are wrong, missing or added, on 4 talks (1 hour) from the [TED-LIUM](https://huggingface.co/datasets/distil-whisper/tedlium-long-form) test set: real speakers with human-written transcripts. Both texts go through Whisper's English normalizer first, so "It's 25%" and "it is twenty five percent" count as the same words. Speed was measured on a 2-core GitHub Codespace.
 
-Lecture Captions is a **client-side single-page app**. There is no backend server in the first version: all processing happens in the browser, and the app is deployed as static files. This keeps hosting free, makes it easy for any university to adopt, and keeps lecture audio private.
+| Model | Mode | WER | Speed |
+|---|---|---|---|
+| tiny.en | whole file | 6.1% | 21.6× real time |
+| tiny.en | live chunks | 21.4% | 1.3× real time |
+| **base.en** | whole file | **4.7%** | 11.5× real time |
+| **base.en** | **live chunks** | **8.2%** | 2.6× real time |
 
-```mermaid
-flowchart LR
-    subgraph Sources[Audio sources]
-        MIC[Microphone<br/>getUserMedia]
-        VID[Video file<br/>HTMLVideoElement.captureStream]
-        TAB[Browser tab<br/>getDisplayMedia]
-    end
+"Whole file" gives Whisper the entire talk at once, which is the best it can do. "Live chunks" cuts the audio exactly the way the app does, so that row is what students actually see.
 
-    subgraph Engines[Speech recognition engines]
-        WS[Web Speech API<br/>fast, built into Chrome/Edge]
-        WH[Whisper in a Web Worker<br/>transformers.js, runs on device]
-    end
+What the numbers say:
 
-    subgraph Core[App core]
-        STORE[Caption store<br/>segments + timestamps]
-        GLOSS[Glossary matcher]
-    end
+1. **Going live costs accuracy.** With base.en, WER goes from 4.7% to 8.2% when Whisper only hears a few seconds at a time instead of the whole talk.
+2. **The small model can't cope with short chunks.** tiny.en is fine on whole files (6.1%) but falls apart on live chunks (21.4%). That's why the server runs base.en.
+3. **Live captions are expensive to compute.** Whisper always works on 30-second windows, so a 5-second chunk costs as much as 30 seconds of audio. An hour of lecture is about 120 windows as one file but about 700 as live chunks, which is why the live rows run 4 to 17 times slower.
 
-    subgraph UI[User interface - React]
-        CAP[Caption view]
-        TR[Transcript panel]
-        ASL[ASL panel<br/>fingerspelling + lookup]
-        SET[Settings]
-    end
+On Cloud Run (2 vCPU), an 11-second clip takes about 2.3 seconds to transcribe. To reproduce the table:
 
-    LS[(Browser storage<br/>settings, glossary,<br/>saved transcripts)]
-    EXP[Export<br/>.txt .vtt .srt]
-
-    MIC --> WS
-    MIC --> WH
-    VID --> WH
-    TAB --> WH
-    WS --> STORE
-    WH --> STORE
-    STORE --> GLOSS
-    GLOSS --> CAP
-    STORE --> TR
-    CAP --> ASL
-    TR --> EXP
-    SET --> LS
-    GLOSS <--> LS
-    TR --> LS
+```bash
+cd backend
+pip install -r requirements.txt -r requirements-eval.txt
+python evaluate_wer.py --models tiny.en base.en --talks 4
 ```
 
-### Main parts
+## Running it yourself
 
-| Part | Responsibility |
-|---|---|
-| **Audio sources** | Get an audio stream from the microphone, a playing video, or a shared browser tab. |
-| **Recognizer interface** | One common TypeScript interface (`start`, `stop`, `onSegment`) so the rest of the app does not care which engine is used. |
-| **Web Speech engine** | Uses the browser's built-in `SpeechRecognition`. Very fast and accurate, but only listens to the microphone. |
-| **Whisper engine** | Runs OpenAI's open-source Whisper model inside the browser through transformers.js, in a Web Worker so the page stays smooth. Works with any audio stream, including videos and tabs, and works offline after the first model download. |
-| **Caption store** | Holds caption segments (text, start time, end time, final or interim) and is the single source of truth for the caption view, the transcript, and exports. |
-| **Glossary matcher** | Finds glossary terms in new caption text and marks them for highlighting. |
-| **ASL panel** | Shows fingerspelling for a selected word, dictionary lookup links, and the glossary sign video if one exists. |
-| **Browser storage** | Saves settings, glossaries, and transcripts on the device (localStorage and IndexedDB). Nothing is uploaded. |
-
-### Key data type
-
-```ts
-type CaptionSegment = {
-  id: string;
-  text: string;
-  startMs: number;   // time since the session started
-  endMs: number;
-  isFinal: boolean;  // false while the recognizer is still guessing
-  source: "mic" | "video" | "tab";
-};
-```
-
-### Why two speech engines?
-
-The Web Speech API is the quickest way to get high-quality live captions, but browsers only let it listen to the microphone, and in Chrome the audio is processed on Google's servers. Whisper fills both gaps: it can caption any audio stream (videos and tabs), and it runs fully on the student's device. Students can switch engines in Settings.
-
----
-
-## Tech stack
-
-| Area | Choice | Why |
-|---|---|---|
-| Language | TypeScript | Type safety and clearer code |
-| UI | React | Component-based UI, widely used in industry |
-| Build tool | Vite | Fast development server and builds |
-| Live speech | Web Speech API | Free, built into Chrome and Edge, no API key |
-| On-device speech | Whisper via `@huggingface/transformers` | Private, works for any audio stream |
-| Audio capture | `getUserMedia`, `getDisplayMedia`, `captureStream`, Web Audio API | Standard browser APIs |
-| Background work | Web Workers | Keeps the UI responsive while Whisper runs |
-| Storage | localStorage, IndexedDB | Saves data on the device only |
-| Testing | Vitest, React Testing Library, Playwright | Unit, component and end-to-end tests |
-| Accessibility testing | axe-core | Automated WCAG checks |
-| Hosting | GitHub Pages, Netlify or Vercel | Free static hosting with HTTPS |
-| CI | GitHub Actions | Runs tests and deploys on every push |
-
----
-
-## Our approach to ASL
-
-ASL is a complete language with its own grammar. It is **not** English words replaced one by one with signs. Fully automatic translation from spoken English into natural ASL is still an unsolved research problem, and a poor machine translation can mislead the very students it is meant to help.
-
-So this project takes a deliberate, honest approach:
-
-1. **Captions first.** Accurate English captions are the foundation.
-2. **Fingerspelling** for names, acronyms, and new terms, which is how signers handle them too.
-3. **Dictionary lookup** that sends students to established ASL resources made by and with Deaf signers.
-4. **Course glossaries** with real sign videos chosen by instructors, interpreters, or students, which matters most for technical vocabulary that has no widely known sign.
-5. **Future research:** signing avatars and sign-language models, built only together with Deaf users and evaluated by fluent signers.
-
----
-
-## Privacy
-
-Lecture audio can include students' voices and is covered by education privacy rules such as FERPA in the US. The app is designed to minimize what leaves the device.
-
-- **No backend, no accounts, no tracking.** The app is static files.
-- **Whisper mode:** audio never leaves the device.
-- **Web Speech mode:** in Chrome, audio is sent to Google's speech service to be recognized. The app tells the user this before the first session and lets them switch to Whisper mode.
-- **Transcripts and glossaries** are stored only in the browser, and the user can delete them at any time.
-- **Recording consent:** users are reminded to follow their university's rules about recording lectures.
-
----
-
-## Accessibility
-
-The app is built to meet **WCAG 2.1 Level AA**:
-
-- Fully usable with a keyboard, with visible focus indicators
-- Screen reader friendly labels and ARIA live regions for status messages
-- Color contrast of at least 4.5:1, plus a high-contrast theme
-- Respects the system's reduced-motion and dark-mode settings
-- Visual alerts only, never sound-only feedback
-
----
-
-## Browser support
-
-| Feature | Chrome | Edge | Safari | Firefox |
-|---|---|---|---|---|
-| Microphone captions (Web Speech) | Yes | Yes | Partial | No |
-| Microphone captions (Whisper) | Yes | Yes | Yes | Yes |
-| Video file captions | Yes | Yes | Yes | Yes |
-| Browser tab captions | Yes | Yes | No | No |
-
-Chrome or Edge on a laptop or desktop is recommended. Whisper runs fastest on devices with WebGPU support.
-
----
-
-## Getting started
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) LTS version
-- [Git](https://git-scm.com/)
-- Google Chrome or Microsoft Edge
-- A microphone
-
-No API keys or paid accounts are needed.
-
-### Install and run
+### The web app
 
 ```bash
 git clone https://github.com/PiyushaKadam07/Live-Lecture-Captioning.git
 cd Live-Lecture-Captioning
 npm install
-npm run dev
+npm run dev        # http://localhost:5173
+npm test           # 27 tests
 ```
 
-Open the address shown in the terminal (usually `http://localhost:5173`) in Chrome or Edge, and allow microphone access when asked.
+By default the app uses my Cloud Run server. To point it at your own, set `VITE_SPEECH_SERVER_URL`, for example `VITE_SPEECH_SERVER_URL=http://localhost:8000 npm run dev`.
 
-### Available scripts
+### The speech server
 
-| Command | What it does |
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --port 8000          # API docs at http://localhost:8000/docs
+```
+
+Or with Docker:
+
+```bash
+docker build -t lecture-captions-api backend
+docker run --rm -p 8080:8080 lecture-captions-api
+```
+
+| Endpoint | What it does |
 |---|---|
-| `npm run dev` | Starts the development server with live reload |
-| `npm run build` | Creates an optimized production build in `dist/` |
-| `npm run preview` | Serves the production build locally |
-| `npm test` | Runs unit and component tests (Vitest + Testing Library) |
-| `npm run typecheck` | Checks types with TypeScript |
+| `GET /health` | Returns the status and the model name |
+| `POST /transcribe` | Takes a 16 kHz mono 16-bit WAV (`audio`) and an optional `prompt`, returns the text and timings |
 
----
+Settings are environment variables: `WHISPER_MODEL` (default `base.en`) and `ALLOWED_ORIGINS` (the websites allowed to call it).
+
+## Deployment
+
+- **Web app:** GitHub Actions runs the tests, builds and publishes to GitHub Pages on every push to `main` ([workflow](.github/workflows/deploy.yml)).
+- **Speech server:** Google Cloud Run, built from the Dockerfile with Cloud Build:
+
+  ```bash
+  cd backend
+  gcloud run deploy lecture-captions-api --source . --region us-east1 \
+    --allow-unauthenticated --cpu 2 --memory 2Gi \
+    --min-instances 0 --max-instances 2 --concurrency 4
+  ```
+
+  `--min-instances 0` turns the server off when nobody is using it, so it costs nothing when idle. The trade-off is a few extra seconds before the first caption. `--max-instances 2` caps the cost.
 
 ## Project structure
 
 ```
-lecture-captions/
-├── public/
-│   └── asl/                     # Fingerspelling handshape images (A-Z)
-├── src/
-│   ├── audio/                   # Microphone, video and tab audio sources
-│   ├── recognizers/
-│   │   ├── Recognizer.ts        # Common interface for all engines
-│   │   ├── webSpeech.ts         # Web Speech API engine
-│   │   └── whisper/             # Whisper engine and its Web Worker
-│   ├── captions/                # Caption store and segment logic
-│   ├── asl/                     # Fingerspelling, dictionary links, glossary
-│   ├── export/                  # .txt, .vtt and .srt exporters
-│   ├── components/              # React components (CaptionView, Transcript, Settings...)
-│   ├── hooks/                   # Reusable React hooks
-│   ├── storage/                 # localStorage and IndexedDB helpers
-│   ├── App.tsx
-│   └── main.tsx
-├── tests/                       # End-to-end tests
-├── index.html
-├── package.json
-└── README.md
+src/
+  recognizers/
+    Recognizer.ts     the interface both engines follow
+    whisper.ts        Whisper engine: microphone, sending chunks, error handling
+    audio.ts          Chunker, downsampling and WAV encoding
+    webSpeech.ts      browser speech engine (Web Speech API)
+  components/         caption view, transcript panel, settings
+  captions/           caption segments and timestamps
+  export/             .txt, .vtt and .srt export
+  useCaptions.ts      React hook that runs an engine and collects captions
+public/
+  recorder-worklet.js AudioWorklet that records the microphone
+backend/
+  main.py             FastAPI + faster-whisper server
+  Dockerfile          image for Cloud Run, with the model built in
+  evaluate_wer.py     the accuracy benchmark above
+tests/                Vitest + React Testing Library
 ```
 
----
+## Privacy
 
-## Deployment
+- In Whisper mode, audio chunks go to the Cloud Run server, are transcribed and aren't stored. In browser speech mode, the browser sends audio to its own speech service (Google in Chrome, Microsoft in Edge). The app says which one applies before the first session.
+- Transcripts and settings are saved only in the browser, and can be deleted at any time.
+- No accounts, no tracking. Users are reminded to follow their university's rules on recording lectures.
 
-The app builds to static files, so it can be hosted for free anywhere that serves HTTPS (browsers only allow microphone access on HTTPS or `localhost`).
+## Limitations
 
-**GitHub Pages with GitHub Actions:**
-
-The workflow in `.github/workflows/deploy.yml` runs the tests, builds with the right base path (`BASE_PATH=/<repo-name>/`), and deploys `dist/`.
-
-1. In the repository, go to **Settings > Pages** and choose **GitHub Actions** as the source.
-2. Every push to `main` then publishes the app at `https://<username>.github.io/<repo-name>/`.
-
-**Netlify or Vercel:** import the GitHub repository, set the build command to `npm run build` and the output folder to `dist`.
-
-**For universities:** because there is no backend, an IT department can host its own copy on any web server or learning management system that serves static files.
-
----
+- Captions arrive in pieces, 3 to 8 seconds behind the speaker, not word by word.
+- The Whisper engine is English only, because the server runs the English-only `base.en` model.
+- The server runs on CPUs, so a big class all captioning at once would need more instances or a GPU.
+- The server is public, so anyone can send it audio. `--max-instances` caps the cost, but a real deployment would need sign-in or rate limits.
 
 ## Roadmap
 
-- [x] Project setup (Vite, React, TypeScript)
-- [x] Live microphone captions with the Web Speech API
-- [x] Readable caption display (font size, contrast, themes, full screen)
-- [x] Transcript with timestamps, search, and export (.txt, .vtt, .srt)
-- [ ] Captions for video files and browser tabs using Whisper
-- [ ] "Ask the lecture": question answering over the transcript with timestamped answers (RAG)
-- [ ] ASL fingerspelling and dictionary lookup
-- [ ] Course glossary with sign videos and automatic highlighting
-- [ ] Accessibility audit (WCAG 2.1 AA) and automated tests
-- [x] Deployment with GitHub Actions
-- [ ] Shareable glossaries (import/export as JSON)
-- [ ] Multi-language captions and translation
-- [ ] Optional instructor "broadcast" mode so students see captions on their own devices
-- [ ] Research: signing avatar, built with Deaf community input
-
----
-
-## Contributing
-
-Contributions are welcome, especially from Deaf and hard of hearing users, ASL interpreters, and accessibility specialists.
-
-1. Fork the repository and create a branch: `git checkout -b feature/your-feature`
-2. Make your changes and add tests.
-3. Run `npm test` and `npm run build`.
-4. Open a pull request describing what you changed and why.
-
-Please open an issue first for large changes.
-
----
+- [x] Live microphone captions, readable display, transcript and export
+- [x] Whisper speech server on Google Cloud Run, with a word error rate benchmark
+- [ ] Captions for lecture videos and browser tabs
+- [ ] Word-by-word captions using streaming Whisper
+- [ ] ASL support: fingerspelling, dictionary lookup, and course glossaries with sign videos, built with Deaf users
+- [ ] More languages, using the multilingual Whisper models
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+MIT. See [LICENSE](LICENSE).
 
----
-
-## Acknowledgements
-
-- The Deaf community, whose guidance of "nothing about us without us" shapes this project
-- [OpenAI Whisper](https://github.com/openai/whisper) and [Hugging Face Transformers.js](https://github.com/huggingface/transformers.js) for on-device speech recognition
-- Public ASL dictionaries and educators who make sign language resources freely available
-
----
-
-Built by **Piyusha** · [GitHub](https://github.com/PiyushaKadam07)
+Built by **Piyusha Kadam** · [GitHub](https://github.com/PiyushaKadam07)
