@@ -11,6 +11,7 @@ import wave
 import numpy as np
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from faster_whisper import WhisperModel
 
 # base.en is a good balance of speed and accuracy on a CPU.
@@ -43,6 +44,10 @@ def read_wav(data: bytes) -> np.ndarray:
         frames = wav.readframes(wav.getnframes())
     return np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
 
+@app.get("/", include_in_schema=False)
+def home():
+    # Visiting the server's main address opens the API docs instead of "Not Found".
+    return RedirectResponse("/docs")
 
 @app.get("/health")
 def health():
